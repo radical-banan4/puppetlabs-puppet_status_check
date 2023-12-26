@@ -3,23 +3,13 @@ require 'json'
 require 'net/http'
 require 'openssl'
 
-# PEStatusCheck - Shared code for pe_status_check facts
-module PEStatusCheck
+# PuppetStatusCheck - Shared code for puppet_status_check facts
+module PuppetStatusCheck
   class << self
-    attr_accessor :infra_profiles, :pup_paths, :facter_timeout
+    attr_accessor :facter_timeout
   end
 
-  self.pup_paths ||= { server_bin: '/opt/puppetlabs/server/bin' }.freeze
   self.facter_timeout ||= 2
-
-  # List of profiles classes applied to PE nodes we can use to determine a node's role
-  self.infra_profiles = [
-    'master',
-    'database',
-    'puppetdb',
-    'certificate_authority',
-    'primary_master_replica',
-  ]
 
   module_function
 
@@ -34,11 +24,6 @@ module PEStatusCheck
     Facter.debug("Error when finding resource #{resource}: #{e.message}")
     Facter.debug(e.backtrace)
     nil
-  end
-
-  # checks puppetlabs.services.ca.certificate-authority-service/certificate-authority-service  exists in puppetserver bootstrap
-  def ca_bootstrap?
-    return true if File.exist?('/etc/puppetlabs/puppetserver/bootstrap.cfg') && File.foreach('/etc/puppetlabs/puppetserver/bootstrap.cfg').grep(%r{certificate-authority-service}).any?
   end
 
   # Check if the service is running
@@ -74,14 +59,10 @@ module PEStatusCheck
     service_running(name, service) and service_enabled(name, service)
   end
 
-  # Return the name of the pe-postgresql service for the current OS
-  # @return [String] The name of the pe-postgresql service
-  def pe_postgres_service_name
-    if Facter.value(:os)['family'].eql?('Debian')
-      "pe-postgresql#{Facter.value(:pe_postgresql_info)['installed_server_version']}"
-    else
-      'pe-postgresql'
-    end
+  # Return the name of the postgresql service for the current OS
+  # @return [String] The name of the postgresql service
+  def postgres_service_name
+    config('postgresql_service') % { 'pg_major_version': pg_major_version }
   end
 
   # Checks if passed service file exists in correct directory for the OS
@@ -127,15 +108,32 @@ module PEStatusCheck
       false
     end
   rescue StandardError => e
-    Facter.debug("Error in fact 'pe_status_check' when querying #{path}: #{e.message}")
+    Facter.debug("Error in fact 'puppet_status_check' when querying #{path}: #{e.message}")
     Facter.debug(e.backtrace)
     false
   end
 
+  def pg_config(option)
+    @pg_options ||= {}
+    @pg_options[option] ||= Facter::Core::Execution.execute("#{config('pg_config')} --#{option}", { timeout: facter_timeout, on_fail: nil })
+  end
+
   # Get the maximum defined and current connections to Postgres
   def psql_return_result(sql, psql_options = '')
-    command = %(su pe-postgres --shell /bin/bash --command "cd /tmp && #{pup_paths[:server_bin]}/psql #{psql_options} --command \\"#{sql}\\"")
-    Facter::Core::Execution.execute(command, { timeout: facter_timeout })
+    command = %(su postgres --shell /bin/bash --command "cd /tmp && #{pg_config('bindir')}/psql #{psql_options} --command \\"#{sql}\\"")
+    Facter::Core::Execution.execute(command, { timeout: facter_timeout, on_fail: nil })
+  end
+
+  def postgresql_version
+    @pg_version ||= pg_config('version').match(%r{PostgreSQL (\d+)\.(\d+) })
+  end
+
+  def pg_major_version
+    postgresql_version[1]
+  end
+
+  def pg_minor_version
+    postgresql_version[2]
   end
 
   def max_connections
@@ -154,6 +152,14 @@ module PEStatusCheck
     psql_return_result(sql, psql_options)
   end
 
+  def pg_data_dir
+    sql = %(
+    SHOW data_directory;
+  )
+    psql_options = '-qtAX'
+    psql_return_result(sql, psql_options)
+  end
+
   # Get the free disk percentage from a path
   # @param path [String] The path on the file system
   # @return [Integer] The percentage of free disk space on the mount
@@ -163,17 +169,23 @@ module PEStatusCheck
     stat = Sys::Filesystem.stat(path)
     (stat.blocks_available.to_f / stat.blocks.to_f * 100).to_i
   rescue LoadError => e
-    Facter.warn("Error in fact 'pe_status_check': #{e.message}")
+    Facter.warn("Error in fact 'puppet_status_check': #{e.message}")
     Facter.debug(e.backtrace)
     0
   end
 
-  def enabled?
-    enabled_file = '/opt/puppetlabs/puppet/cache/state/status_check_enable'
+  def config(option)
+    enabled_file = '/opt/puppetlabs/puppet/cache/state/status_check.json'
     if Facter.value('os')['name'] == 'windows'
       enabled_file = File.join(Facter.value('common_appdata'),
-                               'PuppetLabs/puppet/cache/state/status_check_enable')
+                               'PuppetLabs/puppet/cache/state/status_check.json')
     end
-    File.exist?(enabled_file)
+
+    @config ||= JSON.parse(File.read(enabled_file)) if File.exist?(enabled_file)
+    @config[option]
+  end
+
+  def enabled?
+    config('role').instance_of?(String)
   end
 end

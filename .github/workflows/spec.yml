@@ -18,17 +18,14 @@ jobs:
 
       - name: Checkout Source
         uses: actions/checkout@v3
-        if: ${{ github.repository_owner == 'puppetlabs' }}
 
       - name: Activate Ruby 2.7
         uses: ruby/setup-ruby@v1
-        if: ${{ github.repository_owner == 'puppetlabs' }}
         with:
           ruby-version: "2.7"
           bundler-cache: true
 
       - name: Print bundle environment
-        if: ${{ github.repository_owner == 'puppetlabs' }}
         run: |
           echo ::group::bundler environment
           bundle env
@@ -37,7 +34,6 @@ jobs:
       - name: Setup Spec Test Matrix
         id: get-matrix
         run: |
-          if [ '${{ github.repository_owner }}' == 'puppetlabs' ]; then
           bundle exec matrix_from_metadata_v2
           else
             echo  "spec_matrix={}" >> $GITHUB_OUTPUT

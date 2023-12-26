@@ -13,13 +13,3 @@ jobs:
   spec_testing:
     name: "Spec testing"
     uses: ./.github/workflows/spec.yml
-
-  lts_testing:
-    name: "PE LTS Testing"
-    needs: spec_testing
-    uses: ./.github/workflows/pe_lts_testing.yml
-
-  latest_testing:
-    name: "PE latest Testing"
-    needs: spec_testing
-    uses: ./.github/workflows/pe_latest_testing.yml

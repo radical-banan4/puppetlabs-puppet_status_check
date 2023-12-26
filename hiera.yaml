@@ -18,6 +18,9 @@ hierarchy:
       - "os/%{facts.os.name}.yaml"
       - "os/%{facts.os.family}.yaml"
   - name: 'common'
+    path: 'common.yaml'
+
+  - name: 'static'
     path: 'static.yaml'
 
 plan_hierarchy:

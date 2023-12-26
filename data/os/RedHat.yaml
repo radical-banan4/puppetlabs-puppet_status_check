@@ -1,0 +1,3 @@
+---
+puppet_status_check::postgresql_service: postgresql-%%{}{pg_major_version}
+puppet_status_check::pg_config_path: /usr/pgsql-16/bin/pg_config

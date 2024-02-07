@@ -21,7 +21,7 @@ Facter.add(:puppet_status_check, type: :aggregate) do
 
   chunk(:S0003) do
     # check for noop logic flip as false is the desired state
-    { AS003: !Puppet.settings['noop'] }
+    { S0003: !Puppet.settings['noop'] }
   end
 
   chunk(:S0004) do

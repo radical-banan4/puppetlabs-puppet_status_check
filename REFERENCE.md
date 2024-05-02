@@ -6,128 +6,127 @@
 
 ### Classes
 
-* [`pe_status_check`](#pe_status_check): This class should be enabled if you wish Puppet to notify when pe_status_check indicators are not at optimal values
-* [`pe_status_check::agent_status_enable`](#pe_status_check--agent_status_enable): Enables the execution of agent_status_check fact
+* [`puppet_status_check`](#puppet_status_check): puppet_status_check fact and failed indicators
+
+### Data types
+
+* [`Puppet_status_check::Role`](#Puppet_status_check--Role): puppet status check role
 
 ### Plans
 
-* [`pe_status_check::agent_summary`](#pe_status_check--agent_summary): Summary report if the state of agent_status_check on each node
-Uses the facts task to get the current status from each node
-and produces a summary report in JSON
-* [`pe_status_check::infra_summary`](#pe_status_check--infra_summary): Summary report if the state of pe_status check on each node
+* [`puppet_status_check::summary`](#puppet_status_check--summary): Summary report if the state of status check on each node
 Uses the facts task to get the current status from each node
 and produces a summary report in JSON
 
 ## Classes
 
-### <a name="pe_status_check"></a>`pe_status_check`
+### <a name="puppet_status_check"></a>`puppet_status_check`
 
-When this class is enabled, when any of the indicators in the pe_status_check fact are false puppet will notify of this,
- individual tests can be disabled by adding the ID to the indicator_exclusions parameter
-
-#### Examples
-
-##### 
-
-```puppet
-include pe_status_check
-```
-
-#### Parameters
-
-The following parameters are available in the `pe_status_check` class:
-
-* [`indicator_exclusions`](#-pe_status_check--indicator_exclusions)
-* [`checks`](#-pe_status_check--checks)
-
-##### <a name="-pe_status_check--indicator_exclusions"></a>`indicator_exclusions`
-
-Data type: `Array[String[1]]`
-
-List of disabled indicators, place any indicator ids you do not wish to report on in this list
-
-Default value: `[]`
-
-##### <a name="-pe_status_check--checks"></a>`checks`
-
-Data type: `Hash`
-
-Hash containing a descriptiong for each key indicator
-
-### <a name="pe_status_check--agent_status_enable"></a>`pe_status_check::agent_status_enable`
-
-Adding this class will enable the execution of the agent_status_check fact,
-This allows the fact to be targeted to a specific agent or group of agents
+When this class is included and enabled, any of the indicators in the
+puppet_status_check fact that are false will add a notify resource to the
+catalog.
+Individual indicators can be disabled by adding the ID to the
+indicator_exclusions parameter.
 
 #### Examples
 
 ##### 
 
 ```puppet
-include pe_status_check::agent_status_enable
+include 'puppet_status_check':
 ```
 
 #### Parameters
 
-The following parameters are available in the `pe_status_check::agent_status_enable` class:
+The following parameters are available in the `puppet_status_check` class:
 
-* [`agent_status_enabled`](#-pe_status_check--agent_status_enable--agent_status_enabled)
+* [`enabled`](#-puppet_status_check--enabled)
+* [`role`](#-puppet_status_check--role)
+* [`indicate`](#-puppet_status_check--indicate)
+* [`indicator_exclusions`](#-puppet_status_check--indicator_exclusions)
+* [`checks`](#-puppet_status_check--checks)
+* [`postgresql_service`](#-puppet_status_check--postgresql_service)
+* [`pg_config_path`](#-puppet_status_check--pg_config_path)
 
-##### <a name="-pe_status_check--agent_status_enable--agent_status_enabled"></a>`agent_status_enabled`
+##### <a name="-puppet_status_check--enabled"></a>`enabled`
 
 Data type: `Boolean`
 
-Flag to enable or disable agent_status_check fact
+Enable checks
 
 Default value: `true`
 
-## Plans
+##### <a name="-puppet_status_check--role"></a>`role`
 
-### <a name="pe_status_check--agent_summary"></a>`pe_status_check::agent_summary`
+Data type: `Puppet_status_check::Role`
 
-Summary report if the state of agent_status_check on each node
-Uses the facts task to get the current status from each node
-and produces a summary report in JSON
+Role node performs
 
-#### Parameters
+Default value: `'agent'`
 
-The following parameters are available in the `pe_status_check::agent_summary` plan:
+##### <a name="-puppet_status_check--indicate"></a>`indicate`
 
-* [`targets`](#-pe_status_check--agent_summary--targets)
-* [`indicator_exclusions`](#-pe_status_check--agent_summary--indicator_exclusions)
+Data type: `Boolean`
 
-##### <a name="-pe_status_check--agent_summary--targets"></a>`targets`
+Enable notify resources for failed checks
 
-Data type: `Optional[TargetSpec]`
+Default value: `true`
 
-A comma seprated list of FQDN's of Puppet agent nodes
-Defaults to using a PuppetDB query to identify nodes
-
-Default value: `undef`
-
-##### <a name="-pe_status_check--agent_summary--indicator_exclusions"></a>`indicator_exclusions`
+##### <a name="-puppet_status_check--indicator_exclusions"></a>`indicator_exclusions`
 
 Data type: `Array[String[1]]`
 
-List of disabled indicators, place any indicator ids you do not wish to report on in this list
-Static Hiera Data can be used to set indicator_exclusions in a plan - for more information see https://www.puppet.com/docs/pe/latest/writing_plans_in_puppet_language_pe.html#using_hiera_with_plans
+List of disabled indicators, place any indicator ids you do not wish to
+report on in this list
 
-Default value: `lookup('pe_status_check::indicator_exclusions', undef, undef, [])`
+Default value: `['AS003', 'S0006']`
 
-### <a name="pe_status_check--infra_summary"></a>`pe_status_check::infra_summary`
+##### <a name="-puppet_status_check--checks"></a>`checks`
 
-Summary report if the state of pe_status check on each node
+Data type: `Hash`
+
+Hash containing a description for each check
+
+##### <a name="-puppet_status_check--postgresql_service"></a>`postgresql_service`
+
+Data type: `String`
+
+Name of postgresql service unit
+
+Default value: `'postgresql'`
+
+##### <a name="-puppet_status_check--pg_config_path"></a>`pg_config_path`
+
+Data type: `String`
+
+Path to postgresql pg_config binary
+
+Default value: `'pg_config'`
+
+## Data types
+
+### <a name="Puppet_status_check--Role"></a>`Puppet_status_check::Role`
+
+puppet status check role
+
+Alias of `Enum['primary', 'compiler', 'postgres', 'agent']`
+
+## Plans
+
+### <a name="puppet_status_check--summary"></a>`puppet_status_check::summary`
+
+Summary report if the state of status check on each node
 Uses the facts task to get the current status from each node
 and produces a summary report in JSON
 
 #### Parameters
 
-The following parameters are available in the `pe_status_check::infra_summary` plan:
+The following parameters are available in the `puppet_status_check::summary` plan:
 
-* [`targets`](#-pe_status_check--infra_summary--targets)
-* [`indicator_exclusions`](#-pe_status_check--infra_summary--indicator_exclusions)
+* [`targets`](#-puppet_status_check--summary--targets)
+* [`indicator_exclusions`](#-puppet_status_check--summary--indicator_exclusions)
 
-##### <a name="-pe_status_check--infra_summary--targets"></a>`targets`
+##### <a name="-puppet_status_check--summary--targets"></a>`targets`
 
 Data type: `Optional[TargetSpec]`
 
@@ -136,12 +135,12 @@ Defaults to using a PuppetDB query to identify nodes
 
 Default value: `undef`
 
-##### <a name="-pe_status_check--infra_summary--indicator_exclusions"></a>`indicator_exclusions`
+##### <a name="-puppet_status_check--summary--indicator_exclusions"></a>`indicator_exclusions`
 
 Data type: `Array[String[1]]`
 
 List of disabled indicators, place any indicator ids you do not wish to report on in this list
 Static Hiera Data can be used to set indicator_exclusions in a plan - for more information see https://www.puppet.com/docs/pe/latest/writing_plans_in_puppet_language_pe.html#using_hiera_with_plans
 
-Default value: `lookup('pe_status_check::indicator_exclusions', undef, undef, [])`
+Default value: `lookup('puppet_status_check::indicator_exclusions', undef, undef, [])`
 

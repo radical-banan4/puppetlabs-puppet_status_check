@@ -31,7 +31,7 @@ class puppet_status_check (
   Puppet_status_check::Role $role = 'agent',
   Boolean $enabled = true,
   Boolean $indicate = true,
-  Array[String[1]] $indicator_exclusions = ['AS002', 'AS003', 'S0006'],
+  Array[String[1]] $indicator_exclusions = ['AS003', 'S0006'],
 ) {
   $_base_path = $facts['os']['family'] ? {
     'windows' => "${facts['common_appdata']}/PuppetLabs",

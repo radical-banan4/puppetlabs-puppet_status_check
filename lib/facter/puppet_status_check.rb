@@ -14,11 +14,6 @@ Facter.add(:puppet_status_check, type: :aggregate) do
     { S0001: PuppetStatusCheck.service_running_enabled('puppet') }
   end
 
-  chunk(:S0002) do
-    # Is the Pxp-Agent Service Running and Enabled
-    { S0002: PuppetStatusCheck.service_running_enabled('pxp-agent') }
-  end
-
   chunk(:S0003) do
     # check for noop logic flip as false is the desired state
     { S0003: !Puppet.settings['noop'] }
@@ -410,41 +405,8 @@ Facter.add(:puppet_status_check, type: :aggregate) do
     { AS001: result > 7_776_000 }
   end
 
-  chunk(:AS002) do
-    # Has the PXP agent establish a connection with a remote Broker
-    #
-    valid_families = ['windows', 'Debian', 'RedHat', 'Suse']
-    next unless valid_families.include?(Facter.value(:os)['family'])
-    if Facter.value(:os)['family'] == 'windows'
-      result = Facter::Core::Execution.execute('netstat -np tcp', { timeout: PuppetStatusCheck.facter_timeout })
-      { AS002: result.match?(%r{8142\s*ESTABLISHED}) }
-    else
-      # Obtain all inodes associated with any sockets established outbound to TCP/8142:
-      socket_state = Facter::Core::Execution.execute("ss -tone state established '( dport = :8142 )' ", { timeout: PuppetStatusCheck.facter_timeout })
-      socket_matches = Set.new(socket_state.scan(%r{ino:(\d+)}).flatten)
-
-      # Look for the pxp-agent process in the process table:
-      cmdline_path = Dir.glob('/proc/[0-9]*/cmdline').find { |path| File.read(path).split("\0").first == '/opt/puppetlabs/puppet/bin/pxp-agent' }
-
-      # If no match was found, then the connection to 8142 is not the pxp-agent process because it is not in the process table:
-      if cmdline_path.nil?
-        { AS002: false }
-      else
-        # Find all of the file descriptors associated with pxp-agent which are sockets, and extract just the associated inode number:
-        fd_path = File.join(File.dirname(cmdline_path), 'fd', '*')
-        pxp_socket_inodes = Set.new(Dir.glob(fd_path).map { |path| File.readlink(path) }.select { |t| t.start_with?('socket:') }.map { |str| str.tr('^0-9', '') })
-
-        { AS002: socket_matches.intersect?(pxp_socket_inodes) }
-      end
-    end
-  rescue Facter::Core::Execution::ExecutionFailure => e
-    Facter.warn("puppet_status_check.AS002 failed to get socket status: #{e.message}")
-    Facter.debug(e.backtrace)
-    { AS002: false }
-  end
-
   chunk(:AS003) do
-    # certname is configured in section other than [main]
+    # certname is not configured in section other than [main]
     #
     { AS003: !Puppet.settings.set_in_section?(:certname, :agent) && !Puppet.settings.set_in_section?(:certname, :server) && !Puppet.settings.set_in_section?(:certname, :user) }
   end

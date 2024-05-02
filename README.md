@@ -14,9 +14,9 @@
     - [Setup Requirements](#setup-requirements-1)
     - [Running the plans](#running-the-plans)
 - [Reference](#reference)
-  - [Fact: puppet_status_check_role](#fact-puppet_status_check_role)
-  - [Fact: puppet_status_check](#fact-puppet_status_check)
-  - [Fact: agent_status_check](#fact-agent_status_check)
+  - [Facts](#facts)
+    - [puppet_status_check_role](#puppet_status_check_role)
+    - [puppet_status_check](#puppet_status_check)
 - [How to report an issue or contribute to the module](#how-to-report-an-issue-or-contribute-to-the-module)
 
 ## Description
@@ -59,49 +59,42 @@ puppet_status_check::enabled: false
 
 To enable fact collection and configure notifications, classify nodes with the `puppet_status_check` class. Examples using `site.pp`:
 
-Check basic agent status:
+1. Check basic agent status:
+   ```puppet
+   node 'node.example.com' {
+     include 'puppet_status_check'
+   }
+   ```
+2. Check puppet server infrastructure status:
+   ```puppet
+   node 'node.example.com' {
+     class { 'puppet_status_check':
+       role => 'primary',
+     }
+   }
+   ```
+3. For maximum coverage, report on all default indicators. However, if you need to make exceptions for your environment, classify the array parameter `indicator_exclusions` with a list of all the indicators you do not want to report on.
+   ```puppet
+   class { 'puppet_status_check':
+     indicator_exclusions => ['S0001','S0003','S0003','S0004'],
+   }
+   ```
 
-```puppet
-node 'node.example.com' {
-  include 'puppet_status_check'
-}
-```
-
-Check puppet server infrastructure status:
-
-```puppet
-node 'node.example.com' {
-  class { 'puppet_status_check':
-    role => 'primary',
-  }
-}
-```
-
-For maximum coverage, report on all default indicators. However, if you need to make exceptions for your environment, classify the array parameter `indicator_exclusions` with a list of all the indicators you do not want to report on.
-
-```puppet
-class { 'puppet_status_check':
-  indicator_exclusions => ['S0001','S0003','S0003','S0004'],
-}
-```
-
-### Using a Puppetdb Query to report status.
+### Using a Puppetdb query to report status.
 
 As the module uses Puppet's existing fact behavior to gather the status data from each of the agents, it is possible to use PQL (puppet query language) to gather this information.
 
 Consult with your local Puppet administrator to construct a query suited to your organizational needs. 
-Please find some examples of using the [puppetdb_cli gem](#https://github.com/puppetlabs/puppetdb-cli) to query the status check facts below:
+Please find some examples of using the [puppetdb_cli gem][1] to query the status check facts below:
 
 1. To find the complete output from all nodes listed by certname (this could be a large query based on the number of agent nodes, further filtering is advised ):
    ```shell
    puppet query 'facts[certname,value] { name = "puppet_status_check" }'
    ```
-        
 2. To find the complete output from all nodes listed by certname with the `primary` role:
    ```shell
    puppet query 'facts[certname,value] { name = "puppet_status_check" and certname in facts[certname] { name = "puppet_status_check_role" and value = "primary" } }'
    ```
-
 3. To find those nodes with a specific status check set to false:
    ```shell
    puppet query 'inventory[certname] { facts.puppet_status_check.S0001 = false }'
@@ -115,7 +108,7 @@ The plan `puppet_status_check::summary` summarizes the status of each of the che
 
 #### Setup Requirements
 
-`puppet_status_check::summary` utilize [hiera](https://puppet.com/docs/puppet/latest/hiera_intro.html) to lookup test definitions, this requires placing a static hierarchy in your **environment level** [hiera.yaml](https://puppet.com/docs/puppet/latest/hiera_config_yaml_5.html).
+[Hiera][2] is utilized to lookup test definitions, this requires placing a static hierarchy in your **environment level** [hiera.yaml][3].
 
 ```yaml
 plan_hierarchy:
@@ -124,11 +117,11 @@ plan_hierarchy:
     data_hash: yaml_data
 ```
 
-See the following [documentation](https://puppet.com/docs/bolt/latest/hiera.html#outside-apply-blocks) for further explanation.
+_Refer to the [bolt hiera documentation][4] for further explanation._
 
 #### Using Static Hiera data to populate indicator_exclusions when executing plans
 
-Place the plan_hierarchy listed in the step above, in the environment layer.
+Place the *plan_hierarchy* listed in the step above, in the environment layer.
 
 Create a [static.yaml] file in the environment layer hiera data directory
 ```yaml
@@ -136,43 +129,38 @@ puppet_status_check::indicator_exclusions:
   - '<TEST ID>'                                                                
 ``` 
 
-Indicator ID's within array will be excluded when `running puppet_status_check::summary`.
+Indicator ID's within array will be excluded when running the `puppet_status_check::summary` plan.
 
 #### Running the plans
 
-The `puppet_status_check::summary` plans can be run from the [Puppet Bolt](https://puppet.com/bolt). More information on the parameters in the plan can be seen in the [REFERENCE.md](REFERENCE.md).
+The `puppet_status_check::summary` plans can be run from the [Puppet Bolt][5]. More information on parameters of the plan can be viewed in [REFERENCE.md].
 
-Example call from the command line to run `puppet_status_check::summary` against all infrastructure nodes:
-
-```shell
-bolt plan run puppet_status_check::summary role=primary
-```
-Example call from the command line to run `puppet_status_check::summary` against all regular agent nodes:
-
-```shell
-bolt plan run puppet_status_check:summary role=agent
-```
-
-Example call from the command line to run against a set of infrastructure nodes:
-
-```shell
-bolt plan run puppet_status_check::summary targets=server-70aefa-0.region-a.domain.com,psql-70aefa-0.region-a.domain.com
-```
-
-Example call from the command line to exclude indicators for `puppet_status_check::infra_summary`:
-
-```shell
-bolt plan run puppet_status_check::summary -p '{"indicator_exclusions": ["S0001","S0021"]}'
-```
-Example call from the command line to exclude indicators for `puppet_status_check::agent_summary`:
-
-```shell
-bolt plan run puppet_status_check::summary -p '{"indicator_exclusions": ["AS001","AS002"]}'
-```
+1. Example call from the command line to run `puppet_status_check::summary` against all infrastructure nodes:
+   ```shell
+   bolt plan run puppet_status_check::summary role=primary
+   ```
+2. Example call from the command line to run `puppet_status_check::summary` against all regular agent nodes:
+   ```shell
+   bolt plan run puppet_status_check:summary role=agent
+   ```
+3. Example call from the command line to run against a set of infrastructure nodes:
+   ```shell
+   bolt plan run puppet_status_check::summary targets=server-70aefa-0.region-a.domain.com,psql-70aefa-0.region-a.domain.com
+   ```
+4. Example call from the command line to exclude indicators for `puppet_status_check::infra_summary`:
+   ```shell
+   bolt plan run puppet_status_check::summary -p '{"indicator_exclusions": ["S0001","S0021"]}'
+   ```
+5. Example call from the command line to exclude indicators for `puppet_status_check::agent_summary`:
+   ```shell
+   bolt plan run puppet_status_check::summary -p '{"indicator_exclusions": ["AS001"]}'
+   ```
 
 ## Reference
 
-### Fact: puppet_status_check_role
+### Facts
+
+#### puppet_status_check_role
 
 This fact is used to determine which status checks are included on an infrastructure node. Classify the `puppet_status_check` module with a `role` parameter to change the role.
 
@@ -185,56 +173,94 @@ This fact is used to determine which status checks are included on an infrastruc
 
 _The role is `agent` by default._
 
-### Fact: puppet_status_check
+#### puppet_status_check
 
 This fact is confined to run on infrastructure nodes only.
 
 Refer to the table below for next steps when any indicator reports a `false`.
 
-As this module was derived from the [Puppet Enterprise status check module](https://forge.puppet.com/modules/puppetlabs/pe_status_check), links within the _Self-service steps_ below may reference [Puppet Enterprise](https://www.puppet.com/products/puppet-enterprise) specific solutions. The goal over time is to eventually update these to include Open Source Puppet as well.
+As this module was derived from the [Puppet Enterprise status check module][6], links within the _Self-service steps_ below may reference [Puppet Enterprise][7] specific solutions. The goal over time is to eventually update these to include Open Source Puppet as well.
 
 | Indicator ID | Description                                                                        | Self-service steps                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 |--------------|------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| S0001        | Determines if the puppet service is running on agents. | See [documentation](https://portal.perforce.com/s/article/Why-is-puppet-service-not-running) | If the service fails to start, open a Support ticket referencing S0001, and provide `syslog` and any errors output when attempting to restart the service. |
-| S0002        | Determines if the pxp-agent service is running.                                         | Start the pxp-agent service - `puppet resource service pxp-agent ensure=running`, if the service has failed check the logs located in `/var/logs/puppetlabs/pxp-agent`, for information to debug and understand what the logs mean, see the following links for assistance.          (Connection Type Issues)[https://portal.perforce.com/s/article/4442390587671], if the service is up and running but issues still occur, see (Debug Logging)[https://portal.perforce.com/s/article/7606830611223] |
-| S0003        | Determines if infrastructure components are running in noop.                       | Do not routinely configure noop on infrastructure nodes, as it prevents the management of key infrastructure settings. [Disable this setting on infrastructure components.](https://puppet.com/docs/puppet/latest/configuration.html#noop)                                                                                                                                                                                                                       |
-| S0004        | Determines if the Puppet Server status endpoint is returning any errors.                                  | Execute `puppet infrastructure status`.  Which ever service returns in a state that is not running, examine the logging for that service to indicate the fault.                                                                                                                                                                                                                                                                                         |
-| S0005        | Determines if certificate authority (CA) cert expires in the next 90 days.                                         | Install the [puppetlabs-ca_extend](https://forge.puppet.com/modules/puppetlabs/ca_extend) module and follow steps to extend the CA cert.                                                                                                                                                                                                                                                                                                                                             |
-| S0006        | Determines if Puppet metrics collector is enabled and collecting metrics.                     | Metrics collector is a tool that lets you monitor a installation. If it is not enabled, [enable it.](https://puppet.com/docs/pe/latest/getting_support_for_pe.html#puppet_metrics_collector)  |
-| S0007        | Determines if there is at least 20% disk free on the PostgreSQL data partition.           | Determines if growth is slow and expected within the TTL of your data. If there's an unexpected increase, use this article to [troubleshoot PuppetDB](https://support.puppet.com/hc/en-us/articles/360056219974)                                                                                                                                                                                                 |
-| S0008        | Determines if there is at least 20% disk free on the codedir data partition.        | This can indicate you are deploying more code from the code repo than there is space for on the infrastructure components, or that something else is consuming space on this partition. Run `puppet config print codedir`, check that codedir partition indicated has enough capacity for the code being deployed, and check that no other outside files are consuming this data mount.                                                                                    |
-| S0009        | Determines if pe-puppetserver service is running and enabled on relevant components. | Checks that the service can be started and enabled by running `puppet resource service pe-puppetserver ensure=running`, examines `/var/log/puppetlabs/puppetserver/puppetserver.log` for failures.                                                                                                                                                                                                                                                                                               |
-| S0010        | Determines if pe-puppetdb service is running and enabled on relevant components.    | Checks that the service can be started and enabled by running `puppet resource service pe-pupeptdb ensure=running`, examines `/var/log/puppetlabs/puppetdb/puppetdb.log` for failures.                                                                                                                                                                                                                                                                                                         |
-| S0011        | Determines if pe-postgres service is running and enabled on relevant components.    | Checks that the service can be started and enabled by running `puppet resource service pe-postgres ensure=running`, examines `/var/log/puppetlabs/postgresql/<postgresversion>/postgresql-<today>.log` for failures.                                                                                                                                                                                                                                                                           |
-| S0012        | Determines if Puppet produced a report during the last run interval.                | [Troubleshoot Puppet run failures.](https://puppet.com/docs/pe/latest/run_puppet_on_nodes.html#troubleshooting_puppet_run_failures)                                                                                                                                                                                                                                                                                                                                                                             |
-| S0013        | Determines if the catalog was successfully applied during the last  Puppet run.              | [Troubleshoot Puppet run failures.](https://puppet.com/docs/pe/latest/run_puppet_on_nodes.html#troubleshooting_puppet_run_failures)                                                                                                                                                                                                                                                                                                                                                                            |
-| S0014        | Determines if anything in the command queue is older than a Puppet run interval.         | This can indicate that the PuppetDB performance is inadequate for incoming requests. Review PuppetDB performance. [Use metrics to pinpoint the issue.](https://support.puppet.com/hc/en-us/articles/231751308)  |
-| S0015        | Determines if the infrastructure agent host certificate is expiring in the next 90 days.                                     | Puppet Enterprise has built in functionalilty to regenerate infrastructure certificates, see the following [documentation](https://puppet.com/docs/pe/2021.5/regenerate_certificates.html#regenerate_certificates)  |
-| S0016        | Determines if there are any `OutOfMemory` errors in the `puppetserver` log. | [Increase the Java heap size for that service.](https://support.puppet.com/hc/en-us/articles/360015511413) |
-| S0017        | Determines if there are any `OutOfMemory` errors in the `puppetdb` log. | [Increase the Java heap size for that service.](https://support.puppet.com/hc/en-us/articles/360015511413) |
-| S0018        | Determines if there are any `OutOfMemory` errors in the `orchestrator` log. | [Increase the Java heap size for that service.](https://support.puppet.com/hc/en-us/articles/360015511413) |
-|S0019|Determines if there are sufficent jRubies available to serve agents.| Insufficient jRuby availability results in queued puppet agents and overall poor system performance. There can be many causes: [Insufficient server tuning for load](https://support.puppet.com/hc/en-us/articles/360013148854), [a thundering herd](https://support.puppet.com/hc/en-us/articles/215729277), and [insufficient system resources for scale.](https://puppet.com/docs/pe/latest/hardware_requirements.html#hardware_requirements) |
-| S0020        | Determines if the Console status api reports all services as running |  Determine which service caused the failure [Service Request Format](https://www.puppet.com/docs/pe/2023.4/status_api_json_endpoints#get_status_v1_services-get-status-v1-services-request-format), go to the [logging](https://www.puppet.com/docs/pe/2023.4/what_gets_installed_and_where.html?_ga=2.219585753.1594518485.1698057844-280774152.1694007045&_gl=1*xeui3a*_ga*MjgwNzc0MTUyLjE2OTQwMDcwNDU.*_ga_7PSYLBBJPT*MTY5ODMyNzY5MS41Ny4xLjE2OTgzMjgyOTIuMTEuMC4w#log_files_installed) of that service and look for related error messages|
-|S0021|Determines if free memory is less than 10%.| Ensure your system hardware availability matches the [recommended configuration](https://puppet.com/docs/pe/latest/hardware_requirements.html#hardware_requirements), note this assumes no third-party software using significant resources, adapt requirements accordingly for third-party requirements. Examine metrics from the server and determine if the memory issue is persistent |
-| S0023        | Determines if certificate authority CRL expires in the next 90 days.                                         |     The solution is to reissue a new CRL from the Puppet CA, note this will also remove any revoked certificates. To do this  follow the instructions in [this module](https://forge.puppet.com/modules/m0dular/crl_truncate)                                                                             |
-| S0024        | Determines if there are files in the puppetdb discard directory newer than 1 week old                       |   Recent files indicate an issue that causes PuppetDB to reject incoming data. Investigate Puppetdb logs at the time the data was rejected to find a cause,                                                   |
-| S0025        | Determines if the host copy of the CRL expires in the next 90 days.                                         | If the Output of S0023 on the primary server is also false use the resolution steps in S0023. If S0023 on the Primary is True, follow [this article](https://support.puppet.com/hc/en-us/articles/7631166251415)  |
-| S0026        | Determines if pe-puppetserver JVM Heap-Memory is set to an inefficient value. | Due to an odditity in how JVM memory is utilised, most applications are unable to consume heap memory between ~31GB and ~48GB as such is if you have heap memory set within this value, you should reduce it to more efficiently allocate server resources. To set heap refer to [Increase the Java heap size for this service.](https://support.puppet.com/hc/en-us/articles/360015511413)                                                                                                                                                                                                                                                                                             |
-| S0027        | Determines if if pe-puppetdb JVM Heap-Memory is set to an inefficient value. | Due to an odditity in how JVM memory is utilised, most applications are unable to consume heap memory between ~31GB and ~48GB as such is if you have heap memory set within this value, you should reduce it to more efficiently allocate server resources. To set heap refer to [Increase the Java heap size for this service.](https://support.puppet.com/hc/en-us/articles/360015511413)      |
-| S0029        | Determines if number of current connections to Postgresql DB is approaching 90% of the `max_connections` defined.  | First determine the need to increase connections, evaluate if this message appears on every puppet run, or if idle connections from recent component restarts may be to blame. If persistent, impact is minimal unless you need to add more components such as Compilers or Replicas, if you plan to increase the number of components on your system, increase max_connections value. To increase the maximum number of connections in postgres, adjust `puppet_enterprise::profile::database::max_connections`. Consider also increasing `shared_buffers` if that is the case as each connection consumes RAM.                                                                                                                  |
-| S0030        | Determines when infrastructure components have the setting `use_cached_catalog` set to true.                        | Don't configure use_cached_catalog on infrastructure nodes. It prevents the management of key infrastructure settings. Disable this setting on all infrastructure components. [See our documentation for more information](https://puppet.com/docs/puppet/latest/configuration.html#use-cached-catalog)                                                                                                                                                                                                                    |
-| S0033        | Determines if Hiera 5 is in use. | Upgrading to Hiera 5 [offers some major advantages](https://puppet.com/docs/puppet/latest/hiera_migrate)                                                                                                                          |
-| S0034        | Determines if your deployment has not been upgraded in the last year.                   |  [Upgrade your instance.](https://www.puppet.com/docs/puppet/latest/upgrade.html)                                                                                                                |
-| S0035        | Determines if ``puppet module list`` is returning any warnings | If S0035 returns ``false``, i.e., warnings are present, you should run `puppet module list --debug` and resolve the issues shown.  The Puppetfile does NOT include Forge module dependency resolution. You must make sure that you have every module needed for all of your specified modules to run.Please refer to [Managing environment content with a Puppetfile](https://puppet.com/docs/pe/latest/puppetfile.html) for more info on Puppetfile and refer to the specific module page on the forge for further information on specific dependancies                                                                     |
-| S0036        | Determines if `max-queued-requests` is set above 150.                       | [The maximum value for `jruby_puppet_max_queued_requests` is 150](https://support.puppet.com/hc/en-us/articles/115003769433)                                                                                    |
-| S0038        | Determines whether the number of environments within `$codedir/environments` is less than 100 | Having a large number of code environments can negatively affect Puppet Server performance. [See the Configuring Puppet Server documentation for more information.](https://www.puppet.com/docs/puppet/latest/server/tuning_guide) You should examine if you need them all, any unused environments should be removed. If all are required you can ignore this warning.                    |
-| S0039        | Determines if Puppets Server has reached its `queue-limit-hit-rate`,and is sending messages to agents. | [Check the  max-queued-requests article for more information.](https://support.puppet.com/hc/en-us/articles/115003769433)                      |
-| S0045        | Determines if Puppet Servers are configured with an excessive number of JRubies. | Because each JRuby instance consumes additional memory, having too many can reduce the amount of heap space available to Puppet server and cause excessive garbage collections.  While it is possible to increase the heap along with the number of JRubies, we have observered diminishing returns with more than 12 JRubies and therefore recommend an upper limit of 12. We also recommend allocating between 1 - 2gb of heap memory for each JRuby. |
-| AS001        | Determines if the agent host certificate is expiring in the next 90 days.                                     | Use a puppet query to find expiring host certificates. `puppet query 'inventory[certname] { facts.agent_status_check.AS001 = false }'` |
-| AS002        | Determines if the pxp-agent has an established connection to a pxp broker                                     | Ensure the pxp-agent service is running, if running check `/var/log/puppetlabs/pxp-agent/pxp-agent.log` or `C:/ProgramData/PuppetLabs/pxp-agent/var/log/pxp-agent.log` (on Windows) — Review contents for connection issues, first ensuring the agent is connecting to the proper endpoint, for example, a compiler and not the primary.  |
-| AS003        | Determines the certname configuration parameter is incorrectly set outside of the [main] section of the puppet.conf file.                                 | The Puppet documentation states clearly certname should always be placed solely in the [main] section to prevent unforeseen issues with the operation of the puppet agent https://puppet.com/docs/puppet/8/configuration.html#certname |
-| AS004        | Determines if the host copy of the CRL expires in the next 90 days.                                         | If the Output of S0023 on the primary server is also false use the resolution steps in S0023. If S0023 on the Primary is True, follow [this article](https://support.puppet.com/hc/en-us/articles/7631166251415)  |
+| S0001        | The puppet service is running on agents                            | See [documentation][100] |
+| S0003        | Infrastructure components are running in noop                      | Do not routinely configure noop on infrastructure nodes, as it prevents the management of key infrastructure settings. [Disable this setting on infrastructure components.][103] |
+| S0004        | Puppet Server status endpoint is returning any errors              | Execute `puppet infrastructure status`.  Which ever service returns in a state that is not running, examine the logging for that service to indicate the fault. |
+| S0005        | Certificate authority (CA) cert expires in the next 90 days        | Install the [puppetlabs-ca_extend][104] module and follow steps to extend the CA cert. |
+| S0006        | Puppet metrics collector is enabled and collecting metrics.                       | Metrics collector is a tool that lets you monitor a installation. If it is not enabled, [enable it.][105] |
+| S0007        | There is at least 20% disk free on the PostgreSQL data partition   | Determines if growth is slow and expected within the TTL of your data. If there's an unexpected increase, use this article to [troubleshoot PuppetDB][106] |
+| S0008        | There is at least 20% disk free on the codedir data partition      | This can indicate you are deploying more code from the code repo than there is space for on the infrastructure components, or that something else is consuming space on this partition. Run `puppet config print codedir`, check that codedir partition indicated has enough capacity for the code being deployed, and check that no other outside files are consuming this data mount. |
+| S0009        | Puppetserver service is running and enabled                        | Checks that the service can be started and enabled by running `puppet resource service pe-puppetserver ensure=running`, examines `/var/log/puppetlabs/puppetserver/puppetserver.log` for failures. |
+| S0010        | Puppetdb service is running and enabled                            | Checks that the service can be started and enabled by running `puppet resource service pe-pupeptdb ensure=running`, examines `/var/log/puppetlabs/puppetdb/puppetdb.log` for failures. |
+| S0011        | Postgres service is running and enabled                            | Checks that the service can be started and enabled by running `puppet resource service pe-postgres ensure=running`, examines `/var/log/puppetlabs/postgresql/<postgresversion>/postgresql-<today>.log` for failures. |
+| S0012        | Puppet produced a report during the last run interval              | [Troubleshoot Puppet run failures.][107] |
+| S0013        | The catalog was successfully applied during the last Puppet run    | [Troubleshoot Puppet run failures.][108] |
+| S0014        | Anything in the command queue is older than a Puppet run interval  | This can indicate that the PuppetDB performance is inadequate for incoming requests. Review PuppetDB performance. [Use metrics to pinpoint the issue.][109] |
+| S0015        | The agent host certificate is expiring in the next 90 days         | Puppet Enterprise has built in functionalilty to regenerate infrastructure certificates, see the following [documentation][110] |
+| S0016        | There are no _OutOfMemory_ errors in the Puppetserver log          | [Increase the Java heap size for that service.][111] |
+| S0017        | There are no _OutOfMemory_ errors in the Puppetdb log              | [Increase the Java heap size for that service.][112] |
+| S0019        | There sufficient jRubies available to serve agents                 | Insufficient jRuby availability results in queued puppet agents and overall poor system performance. There can be many causes: [Insufficient server tuning for load][113], [a thundering herd][114], and [insufficient system resources for scale.][115] |
+| S0021        | There is at least 10% free system memory                           | Ensure your system hardware availability matches the [recommended configuration][116], note this assumes no third-party software using significant resources, adapt requirements accordingly for third-party requirements. Examine metrics from the server and determine if the memory issue is persistent |
+| S0023        | Certificate authority CRL does not expire within the next 90 days  | The solution is to reissue a new CRL from the Puppet CA, note this will also remove any revoked certificates. To do this follow the instructions in [this module][117] |
+| S0024        | Files in the puppetdb discard directory more than 1 week old       | Recent files indicate PuppetDB may have in issue processing incoming data. See [this article][118] for more information. |
+| S0025        | The host copy of the CRL does not expire in the next 90 days       | If S0023 on the primary role is also false, use the resolution steps in S0023. If S0023 on the primary is true, follow [this article][119] |
+| S0026        | The puppetserver JVM Heap-Memory is set to an efficient value      | Due to an oddity in how JVM memory is utilized, most Java applications are unable to consume heap memory between ~31GB and ~48GB. If the heap memory set within this value, reduce it to efficiently allocate server resources. See [this article][120] for more information. |
+| S0027        | The puppetdb JVM Heap-Memory is set to an efficient value          | Due to an oddity in how JVM memory is utilized, most Java applications are unable to consume heap memory between ~31GB and ~48GB. If the heap memory set within this value, reduce it to efficiently allocate server resources. See [this article][121] for more information. |
+| S0029        | Postgresql connections are less than 90% of the configured maximum | First determine the need to increase connections, evaluate if this message appears on every puppet run, or if idle connections from recent component restarts may be to blame. If persistent, impact is minimal unless you need to add more components such as Compilers or Replicas, if you plan to increase the number of components on your system, increase the `max_connections` value. Consider also increasing `shared_buffers` if that is the case as each connection consumes RAM. |
+| S0030        | Puppet is configured with `use_cached_catalog` set to true         | It is recommended to not enable `use_cached_catalog`. Enabling prevents the enforcement of key infrastructure settings. [See our documentation for more information][122] |
+| S0033        | Hiera version 5 is in use                                          | Upgrading to Hiera 5 [offers major advantages][123] |
+| S0034        | Puppetserver been upgraded within the last year                    | [Upgrade your instance.][124] |
+| S0035        | `puppet module list` is not returning any warnings                 | Run `puppet module list --debug` and resolve the issues shown. The Puppetfile does NOT include Forge module dependency resolution. Ensure that every module needed for all of the specified modules to run is included. Refer to [managing environment content with a Puppetfile][125] and refer individual modules on [the Puppet forge][126] for dependency information. |
+| S0036        | Puppetserver configured `max-queued-requests` is less than 151     | [The maximum value for `jruby_puppet_max_queued_requests` is 150][127] |
+| S0038        | Number of environments under `$codedir/environments` is less than 100 | Having a large number of code environments can negatively affect Puppet Server performance. See [Configuring Puppet Server documentation][128] for more information. Remove any environments that are not required. If all are required you can ignore this warning. |
+| S0039        | Puppetserver has not reached the configured `queue-limit-hit-rate` | See the [max-queued-requests article][129] for more information. |
+| S0045        | Puppetserver is configured with a reasonable number of JRubies     | Having too many can reduce the amount of heap space available to puppetserver and cause excessive garbage collections, reducing performance. While it is possible to increase the heap along with the number of JRubies, we have observed diminishing returns with more than 12 JRubies. Therefore an upper limit of 12 is recommended with between 1 and 2gb of heap memory allocated for each. |
+| AS001        | The agent host certificate is not expiring in the next 90 days     | Use a puppet query to find expiring host certificates. `puppet query 'inventory[certname] { facts.puppet_status_check.AS001 = false }'` |
+| AS003        | If set, the certname is not in the wrong section of puppet.conf    | The certname should only be placed in the [main] section to prevent unforeseen issues with the puppet agent. Refer to the documentation on [configuring the certname][130]. |
+| AS004        | The hosts copy of the CRL does not expire in the next 90 days      | Use the resolution steps in S0023. If S0023 on the primary role is true, [follow this article][131] |
 
 ## How to report an issue or contribute to the module
 
- If you have a reproducible bug, you can [open an issue directly in the GitHub issues page of the module](https://github.com/puppetlabs/puppetlabs-puppet_status_check/issues). We also welcome PR contributions to improve the module. [Please see further details about contributing](https://puppet.com/docs/puppet/latest/contributing.html#contributing_changes_to_module_repositories).
+ If you have a reproducible bug, you can [open an issue directly in the GitHub issues page of the module][8]. We also welcome PR contributions to improve the module. [Please see further details about contributing][9].
+
+[1]: https://github.com/puppetlabs/puppetdb-cli
+[2]: https://puppet.com/docs/puppet/latest/hiera_intro.html
+[3]: https://puppet.com/docs/puppet/latest/hiera_config_yaml_5.html
+[4]: https://puppet.com/docs/bolt/latest/hiera.html#outside-apply-blocks
+[5]: https://puppet.com/bolt
+[6]: https://forge.puppet.com/modules/puppetlabs/pe_status_check
+[7]: https://www.puppet.com/products/puppet-enterprise
+[8]: https://github.com/puppetlabs/puppetlabs-puppet_status_check/issues
+[9]: https://puppet.com/docs/puppet/latest/contributing.html#contributing_changes_to_module_repositories
+[100]: https://portal.perforce.com/s/article/Why-is-puppet-service-not-running
+[101]: https://portal.perforce.com/s/article/4442390587671
+[102]: https://portal.perforce.com/s/article/7606830611223
+[103]: https://puppet.com/docs/puppet/latest/configuration.html#noop
+[104]: https://forge.puppet.com/modules/puppetlabs/ca_extend
+[105]: https://puppet.com/docs/pe/latest/getting_support_for_pe.html#puppet_metrics_collector
+[106]: https://support.puppet.com/hc/en-us/articles/360056219974
+[107]: https://puppet.com/docs/pe/latest/run_puppet_on_nodes.html#troubleshooting_puppet_run_failures
+[108]: https://puppet.com/docs/pe/latest/run_puppet_on_nodes.html#troubleshooting_puppet_run_failures
+[109]: https://support.puppet.com/hc/en-us/articles/231751308
+[110]: https://puppet.com/docs/pe/2021.5/regenerate_certificates.html#regenerate_certificates
+[111]: https://support.puppet.com/hc/en-us/articles/360015511413
+[112]: https://support.puppet.com/hc/en-us/articles/360015511413
+[113]: https://support.puppet.com/hc/en-us/articles/360013148854
+[114]: https://support.puppet.com/hc/en-us/articles/215729277
+[115]: https://puppet.com/docs/pe/latest/hardware_requirements.html#hardware_requirements
+[116]: https://puppet.com/docs/pe/latest/hardware_requirements.html#hardware_requirements
+[117]: https://forge.puppet.com/modules/m0dular/crl_truncate
+[118]: https://portal.perforce.com/s/article/files-in-the-puppetdb-discard-directory
+[119]: https://support.puppet.com/hc/en-us/articles/7631166251415
+[120]: https://support.puppet.com/hc/en-us/articles/360015511413
+[121]: https://support.puppet.com/hc/en-us/articles/360015511413
+[122]: https://puppet.com/docs/puppet/latest/configuration.html#use-cached-catalog
+[123]: https://puppet.com/docs/puppet/latest/hiera_migrate
+[124]: https://www.puppet.com/docs/puppet/latest/upgrade.html
+[125]: https://puppet.com/docs/pe/latest/puppetfile.html
+[126]: https://forge.puppet.com
+[127]: https://support.puppet.com/hc/en-us/articles/115003769433
+[128]: https://www.puppet.com/docs/puppet/latest/server/tuning_guide
+[129]: https://support.puppet.com/hc/en-us/articles/115003769433
+[130]: https://puppet.com/docs/puppet/8/configuration.html#certname
+[131]: https://support.puppet.com/hc/en-us/articles/7631166251415

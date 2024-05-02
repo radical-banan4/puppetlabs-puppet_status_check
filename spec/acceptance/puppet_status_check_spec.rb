@@ -50,12 +50,6 @@ describe 'puppet_status_check class' do
 
     # Each facts failing condition should be set and the output of the facts tested
     describe 'check all facts report false in the proper conditions' do
-      it 'if S0002 conditions for false are met' do
-        run_shell('puppet resource service pxp-agent ensure=stopped')
-        result = run_shell('facter -p puppet_status_check.S0002')
-        expect(result.stdout).to match(%r{false})
-        run_shell('puppet resource service pxp-agent ensure=running')
-      end
       it 'if S0003 conditions for false are met' do
         run_shell('puppet config set noop true', expect_failures: false)
         result = run_shell('facter -p puppet_status_check.S0003')
@@ -163,33 +157,12 @@ describe 'puppet_status_check class' do
         expect(result.stdout).to match(%r{false})
         run_shell('export logdir=$(puppet config print logdir) && rm -f logdir/../puppetdb/test_err_pid_123.log')
       end
-      it 'if S0018 conditions for false are met' do
-        run_shell('export logdir=$(puppet config print logdir) &&
-         cp $logdir/../orchestration-services/orchestration-services.log $logdir/../orchestration-services/orchestration-services.log.bk &&
-         echo "java.lang.OutOfMemoryError" >> $logdir/../orchestration-services/orchestration-services.log')
-        result = run_shell('facter -p puppet_status_check.S0018')
-        expect(result.stdout).to match(%r{false})
-        run_shell('export logdir=$(puppet config print logdir) && rm -f $logdir/../orchestration-services/orchestration-services.log &&
-        mv $logdir/../orchestration-services/orchestration-services.log.bk $logdir/../orchestration-services/orchestration-services.log')
-      end
-      it 'if S0018 returns false when recent err_pid files are present' do
-        run_shell('export logdir=$(puppet config print logdir) && touch $logdir/../orchestration-services/test_err_pid_123.log')
-        result = run_shell('facter -p puppet_status_check.S0018')
-        expect(result.stdout).to match(%r{false})
-        run_shell('export logdir=$(puppet config print logdir) && rm -f logdir/../orchestration-services/test_err_pid_123.log')
-      end
       # Removing but not deleting test for future consumption
       #       it 'if S0019 returns false when Average Free JRubies is > 0.9' do
       #         run_shell('puppet agent --enable; puppet agent -t; puppet agent -t; puppet agent -t; puppet agent --disable', expect_failures: true)
       #         result = run_shell('facter -p puppet_status_check.S0019')
       #         expect(result.stdout).to match(%r{false})
       #       end
-      it 'if S0020 conditions for false are met' do
-        run_shell('puppet resource service pe-console-services  ensure=stopped')
-        result = run_shell('facter -p puppet_status_check.S0020')
-        expect(result.stdout).to match(%r{false})
-        run_shell('puppet resource service pe-console-services  ensure=running')
-      end
       it 'if S0021 conditions for false are met' do
         run_shell('mkdir -p /etc/puppetlabs/facter/facts.d/;echo \'{
   "memory": {

@@ -1,6 +1,5 @@
 puppet_status_check::checks:
   S0001: "Checks that Puppet agent service is running and enabled"
-  S0002: "Checks that pxp-agent service is running and enabled"
   S0003: "Checks that noop mode is not enabled for infrastructure components"
   S0004: "Checks that the status endpoint for Puppet Server is returning an error-free status"
   S0005: "Checks whether CA expires within 90 days"
@@ -16,9 +15,7 @@ puppet_status_check::checks:
   S0015: "Checks whether the infrastructure agent host certificate expires within 90 days"
   S0016: "Checks that there are no OutOfMemory errors in the Puppet Server JVM"
   S0017: "Checks that there are no OutOfMemory errors in the PuppetDB JVM"
-  S0018: "Checks that there are no OutOfMemory errors in the Orchestrator JVM"
   S0019: "Checks that there are sufficient JRubies available to serve agents"
-  S0020: "Checks that the console status API reports all services as running"
   S0021: "Checks that free memory is more than 10%"
   S0023: "Checks whether the CA CRL expires within 90 days"
   S0024: "Checks that there are no files in the PuppetDB discard directory newer than 1 week old"
@@ -35,7 +32,6 @@ puppet_status_check::checks:
   S0039: "Checks that Puppet Server has a non zero queue-limit-hit-rate"
   S0044: "Checks that Puppet Servers are using the the PE classifier for the node data plugin"
   AS001: "Checks whether the agent host certificate expires within 90 days"
-  AS002: "Checks that the pxp-agent has an established connection to a pxp broker"
   AS003: "Checks that the certname configuration parameter is correctly set inside the [main] section of the puppet.conf file"
   AS004: "Checks whether the host copy of the CRL expires within 90 days"
 

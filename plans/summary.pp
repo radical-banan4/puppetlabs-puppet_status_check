@@ -1,22 +1,20 @@
-# @summary Summary report if the state of agent_status_check on each node
+# @summary Summary report if the state of status check on each node
 #   Uses the facts task to get the current status from each node
 #   and produces a summary report in JSON
 # @param targets
-#   A comma seprated list of FQDN's of Puppet agent nodes
+#   A comma seprated list of FQDN's of Puppet infrastructure agent nodes
 #   Defaults to using a PuppetDB query to identify nodes
 # @param indicator_exclusions
 #   List of disabled indicators, place any indicator ids you do not wish to report on in this list
 #   Static Hiera Data can be used to set indicator_exclusions in a plan - for more information see https://www.puppet.com/docs/pe/latest/writing_plans_in_puppet_language_pe.html#using_hiera_with_plans 
-plan pe_status_check::agent_summary(
-  Array[String[1]] $indicator_exclusions = lookup('pe_status_check::indicator_exclusions', undef, undef, []),
+plan puppet_status_check::summary(
+  Array[String[1]] $indicator_exclusions = lookup('puppet_status_check::indicator_exclusions', undef, undef, []),
   Optional[TargetSpec] $targets          = undef,
 ) {
   # Query PuppetDB if $targets is not unspecified
   $_targets = if $targets =~ Undef {
     $certnames_or_error = catch_errors() || {
-      # NOTE: We use `pe_build` to identify all non-infrastructure nodes that could have `agent_status_check`
-      #       This could be changed to `facts.agent_status_check` instead, but could miss some potential failure states
-      puppetdb_query('inventory[certname]{ ! certname in fact_contents[certname]{name ~ "pe_build"} }').map |$r| { $r['certname'] }
+      puppetdb_query('inventory[certname]{ facts.aio_agent_version is not null }').map |$r| { $r['certname'] }
     }
     if $certnames_or_error =~ Error {
       fail_plan("PuppetDB query failed: ${certnames_or_error}")
@@ -26,7 +24,7 @@ plan pe_status_check::agent_summary(
     get_targets($targets)
   }
   # Trapping errors doesn't work here since the lookup will fail regardless
-  $checks = lookup('pe_status_check::checks', Hash)
+  $checks = lookup('puppet_status_check::checks', Hash)
 
   # Get the facts from the Targets to use for processing
   $results = without_default_logging() || {
@@ -44,13 +42,13 @@ plan pe_status_check::agent_summary(
   }
 
   # Parse the results to identify nodes with the fact
-  $agent_status_check_results = $results.ok_set.filter |$r| { $r['agent_status_check'] =~ NotUndef and ! $r['agent_status_check'].empty }
-  $missing = $results.ok_set.filter |$r| { $r['agent_status_check'] =~ Undef or $r['agent_status_check'].empty }
+  $status_check_results = $results.ok_set.filter |$r| { $r['puppet_status_check'] =~ NotUndef and ! $r['puppet_status_check'].empty }
+  $missing = $results.ok_set.filter |$r| { $r['puppet_status_check'] =~ Undef or $r['puppet_status_check'].empty }
   $missing_errors = $missing.reduce({}) |$memo, $r| {
     $memo + {
-      $r.target.name => $r['pe_build'] =~ Undef ? {
-        false    => 'This plan does not check the status of agent nodes',
-        default => 'Missing the \'agent_status_check\' fact'
+      $r.target.name => $r['aio_agent_version'] =~ Undef ? {
+        true    => 'This plan does not check the status of agent nodes',
+        default => 'Missing the \'puppet_status_check\' fact'
       }
     }
   }
@@ -61,9 +59,9 @@ plan pe_status_check::agent_summary(
     'passing' => [],
     'failing' => [],
   }
-  $node_summary = $agent_status_check_results.reduce($output_format) |$memo, $res| {
-    $failing = $res['agent_status_check'].filter |$k, $v| { ! $v and ! ($k in $indicator_exclusions) }
-    $passing = $res['agent_status_check'].filter |$k, $v| { $v and ! ($k in $indicator_exclusions) }
+  $node_summary = $status_check_results.reduce($output_format) |$memo, $res| {
+    $failing = $res['puppet_status_check'].filter |$k, $v| { ! $v and ! ($k in $indicator_exclusions) }
+    $passing = $res['puppet_status_check'].filter |$k, $v| { $v and ! ($k in $indicator_exclusions) }
     $state = $failing.empty ? {
       true => 'passing',
       default => 'failing'
@@ -72,7 +70,7 @@ plan pe_status_check::agent_summary(
       $res.target.name => {
         'passing_tests_count' => $passing.length,
         'failed_tests_count'   => $failing.length,
-        'failed_tests_details' => $failing.keys.map |$key| { $checks[$key] },
+        'failed_tests_details' => $failing.keys.map |$key| { "${key}: ${checks[$key]}" },
       },
     }
     $memo + {

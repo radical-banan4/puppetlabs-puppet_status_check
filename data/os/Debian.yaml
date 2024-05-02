@@ -1,0 +1,2 @@
+---
+puppet_status_check::postgresql_service: postgresql@%%{}{pg_major_version}-main

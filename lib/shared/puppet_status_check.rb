@@ -125,7 +125,7 @@ module PuppetStatusCheck
   end
 
   def postgresql_version
-    @pg_version ||= pg_config('version').match(%r{PostgreSQL (\d+)\.(\d+) })
+    @pg_version ||= pg_config('version')&.match(%r{PostgreSQL (\d+)\.(\d+)})
   end
 
   def pg_major_version

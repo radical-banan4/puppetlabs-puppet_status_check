@@ -56,9 +56,9 @@ Facter.add(:puppet_status_check, type: :aggregate) do
 
       { S0007: PuppetStatusCheck.filesystem_free(data_dir) >= 20 }
     rescue StandardError => e
-      Facter.warn("Error in fact 'puppet_status_check.:S0007' when checking postgres info: #{e.message}")
+      Facter.warn("Error in fact 'puppet_status_check.S0007' when checking postgres info: #{e.message}")
       Facter.debug(e.backtrace)
-      next
+      { S0007: false }
     end
   end
 
@@ -87,8 +87,15 @@ Facter.add(:puppet_status_check, type: :aggregate) do
     next unless ['primary', 'postgres'].include?(PuppetStatusCheck.config('role'))
 
     # Is the pe-postgres Service Running and Enabled
-    service_name = PuppetStatusCheck.postgres_service_name
-    { S0011: PuppetStatusCheck.service_running_enabled(service_name) }
+    begin
+      service_name = PuppetStatusCheck.postgres_service_name
+      status = PuppetStatusCheck.service_running_enabled(service_name)
+    rescue StandardError => e
+      Facter.warn("Error in fact 'puppet_status_check.S0011' failed to get service name: #{e.message}")
+      Facter.debug(e.backtrace)
+    end
+
+    { S0011: status ? true : false }
   end
 
   chunk(:S0012) do
@@ -263,6 +270,7 @@ Facter.add(:puppet_status_check, type: :aggregate) do
     rescue StandardError => e
       Facter.warn("Error in fact 'puppet_status_check.S0029' when querying postgres: #{e.message}")
       Facter.debug(e.backtrace)
+      { S0029: false }
     end
   end
 

@@ -45,6 +45,12 @@ The default fact population will not perform checks related to puppet infrastruc
 puppet_status_check::role: primary
 ```
 
+Optionally define the path to `pg_config` if it is not in the standard path.
+
+```
+puppet_status_check::pg_config_path: /usr/pgsql-16/bin/pg_config
+```
+
 ### Disable
 
 To completely disable the collection of `puppet_status_check` facts, uninstall the module or [classify the module](#class-declaration) with the `enabled` parameter:

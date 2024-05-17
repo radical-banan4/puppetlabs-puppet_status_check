@@ -9,5 +9,5 @@ on:
 jobs:
   label:
     if: contains(fromJson('["puppetlabs", "puppet-toy-chest"]'), github.repository_owner)
-    uses: "puppetlabs/cat-github-actions/.github/workflows/labeller.yml@forked-modules"
+    uses: "puppetlabs/cat-github-actions/.github/workflows/labeller.yml@main"
     secrets: inherit

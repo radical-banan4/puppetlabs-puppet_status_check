@@ -1,6 +1,6 @@
 {
   "name": "puppetlabs-puppet_status_check",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "author": "puppetlabs",
   "summary": "A Puppet Module to Promote Preventative Maintenance and Self Service",
   "license": "Apache-2.0",
